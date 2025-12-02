@@ -6,7 +6,9 @@ import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yupi.yupicturebackend.api.aliyunai.AliYunAiApi;
@@ -637,12 +639,27 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             ThrowUtils.throwIf(!userService.isAdmin(loginUser), ErrorCode.NO_AUTH_ERROR, "没有管理员权限");
         }
 
+//        // 3. 查询指定图片（仅选择需要的字段）
+//        List<Picture> pictureList = this.lambdaQuery()
+//                .select(Picture::getId, Picture::getSpaceId)
+//                .eq(Picture::getSpaceId, spaceId)
+//                .in(Picture::getId, pictureIdList)
+//                .list();
         // 3. 查询指定图片（仅选择需要的字段）
-        List<Picture> pictureList = this.lambdaQuery()
+        LambdaQueryChainWrapper<Picture> queryWrapper = this.lambdaQuery()
                 .select(Picture::getId, Picture::getSpaceId)
-                .eq(Picture::getSpaceId, spaceId)
-                .in(Picture::getId, pictureIdList)
-                .list();
+                .in(Picture::getId, pictureIdList);
+
+        // 根据spaceId是否为null使用不同的查询条件
+        if (spaceId != null) {
+            queryWrapper.eq(Picture::getSpaceId, spaceId);
+        } else {
+            queryWrapper.isNull(Picture::getSpaceId);
+        }
+
+        List<Picture> pictureList = queryWrapper.list();
+
+
         if (pictureList.isEmpty()) {
             return;
         }

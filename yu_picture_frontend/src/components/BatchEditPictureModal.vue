@@ -45,7 +45,7 @@ import { message } from 'ant-design-vue'
 
 interface Props {
   pictureList: API.PictureVO[]
-  spaceId: number
+  spaceId: number | null
   onSuccess: () => void
 }
 
@@ -83,11 +83,15 @@ const handleSubmit = async (values: any) => {
   if (!props.pictureList) {
     return
   }
-  const res = await editPictureByBatchUsingPost({
+  const params: any = {
     pictureIdList: props.pictureList.map((picture) => picture.id),
-    spaceId: props.spaceId,
     ...values,
-  })
+  }
+  // 只有当spaceId不为null时才添加到参数中
+  if (props.spaceId !== null) {
+    params.spaceId = props.spaceId
+  }
+  const res = await editPictureByBatchUsingPost(params)
   // 操作成功
   if (res.data.code === 0 && res.data.data) {
     message.success('操作成功')

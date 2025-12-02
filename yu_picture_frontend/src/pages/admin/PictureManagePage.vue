@@ -131,7 +131,7 @@
 
     <BatchEditPictureModal
       ref="batchEditPictureModalRef"
-      :spaceId="id"
+      :spaceId="null"
       :pictureList="dataList"
       :onSuccess="onBatchEditPictureSuccess"
     />
