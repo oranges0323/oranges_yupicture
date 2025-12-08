@@ -112,4 +112,7 @@ public interface PictureService extends IService<Picture> {
     void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
 
     CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
+
+    List<PictureVO> getSimilarPicture(List<String> tags,String picColor,Long pictureId);
+    void increaseViewCount(Long pictureId);
 }

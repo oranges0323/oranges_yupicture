@@ -46,6 +46,12 @@
             <a-descriptions-item label="大小">
               {{ formatSize(picture.picSize) }}
             </a-descriptions-item>
+            <a-descriptions-item label="浏览量">
+              <a-space>
+                <EyeOutlined />
+                {{ picture.viewCount || 0 }}
+              </a-space>
+            </a-descriptions-item>
             <a-descriptions-item label="主色调">
               <a-space>
                 {{ picture.picColor ?? '-' }}
@@ -81,18 +87,42 @@
         </a-card>
       </a-col>
     </a-row>
+    
+    <!-- 推荐相似图片 -->
+    <a-divider style="margin: 24px 0;" />
+    <a-card title="相似图片推荐" style="margin-bottom: 16px;">
+      <a-spin :spinning="recommendLoading">
+        <a-empty v-if="!recommendLoading && (!recommendedPictures || recommendedPictures.length === 0)" description="暂无推荐图片" />
+        <a-row v-else :gutter="[16, 16]">
+          <a-col :xs="24" :sm="12" :md="8" v-for="(pic, index) in recommendedPictures.slice(0, 3)" :key="index">
+            <a-card 
+              hoverable 
+              @click.stop="goToPictureDetail(pic.id)"
+              style="cursor: pointer;"
+            >
+              <template #cover>
+                <img :src="pic.thumbUrl || pic.url" :alt="pic.name" style="height: 200px; object-fit: cover; width: 100%;" @click.stop="goToPictureDetail(pic.id)" />
+              </template>
+              <a-card-meta :title="pic.name || '未命名'" />
+            </a-card>
+          </a-col>
+        </a-row>
+      </a-spin>
+    </a-card>
+    
     <ShareModal ref="shareModalRef" :link="shareLink" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, h, onMounted, ref } from 'vue'
-import { deletePictureUsingPost, getPictureVoByIdUsingGet } from '@/api/pictureController.ts'
+import { deletePictureUsingPost, getPictureVoByIdUsingGet, getSimilarPictureUsingGet } from '@/api/pictureController.ts'
 import { message } from 'ant-design-vue'
 import {
   DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
+  EyeOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
@@ -106,6 +136,8 @@ interface Props {
 
 const props = defineProps<Props>()
 const picture = ref<API.PictureVO>({})
+const recommendedPictures = ref<API.PictureVO[]>([])
+const recommendLoading = ref(false)
 
 // 通用权限检查函数
 function createPermissionChecker(permission: string) {
@@ -126,6 +158,8 @@ const fetchPictureDetail = async () => {
     })
     if (res.data.code === 0 && res.data.data) {
       picture.value = res.data.data
+      // 获取推荐图片
+      await fetchRecommendedPictures()
     } else {
       message.error('获取图片详情失败，' + res.data.message)
     }
@@ -134,11 +168,47 @@ const fetchPictureDetail = async () => {
   }
 }
 
+// 获取推荐相似图片
+const fetchRecommendedPictures = async () => {
+  if (!picture.value.id) return;
+  
+  recommendLoading.value = true;
+  try {
+    console.log('正在获取推荐图片，图片ID：', picture.value.id);
+    const res = await getSimilarPictureUsingGet({
+      pictureId: picture.value.id,
+      limit: 3,
+    });
+    console.log('获取推荐图片响应：', res);
+    console.log('响应数据：', res.data);
+    if (res.data.code === 0 && res.data.data) {
+      console.log('推荐图片数据：', res.data.data);
+      recommendedPictures.value = res.data.data;
+    } else {
+      console.error('获取推荐图片失败：', res.data.message);
+    }
+  } catch (e: any) {
+    console.error('获取推荐图片异常：', e);
+    console.error('错误详情：', e.response?.data);
+    console.error('请求URL：', e.config?.baseURL + e.config?.url);
+    console.error('请求参数：', e.config?.params);
+  } finally {
+    recommendLoading.value = false;
+  }
+};
+
 onMounted(() => {
   fetchPictureDetail()
 })
 
 const router = useRouter()
+
+// 跳转到图片详情页
+const goToPictureDetail = (id: number) => {
+  console.log('点击推荐图片，ID：', id);
+  console.log('准备跳转到：', `/picture/${id}`);
+  window.location.href = `/picture/${id}`;
+}
 
 // 编辑
 const doEdit = () => {

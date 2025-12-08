@@ -117,6 +117,10 @@ public class PictureVO implements Serializable {
      */
     private List<String> permissionList = new ArrayList<>();
 
+    /**
+     * 浏览量
+     */
+    private Long viewCount;
 
     /**
      *相互转换，然后因为有一个tag类型不一样，需要另外转换一下
