@@ -59,7 +59,8 @@ const loading = ref(true)
 const searchParams = reactive<API.PictureQueryRequest>({
   current: 1,
   pageSize: 18,
-  sortField: 'createTime',
+  //排序参数
+  sortField: 'viewCount',
   sortOrder: 'descend',
 })
 

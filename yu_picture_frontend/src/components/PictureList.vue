@@ -27,6 +27,10 @@
                   <a-tag v-for="tag in picture.tags" :key="tag">
                     {{ tag }}
                   </a-tag>
+<!--                  展示浏览量-->
+<!--                  <a-tag color="blue">-->
+<!--                    <EyeOutlined /> {{ picture.viewCount || 0 }}-->
+<!--                  </a-tag>-->
                 </a-flex>
               </template>
             </a-card-meta>
@@ -49,6 +53,7 @@ import { useRouter } from 'vue-router'
 import {
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
   SearchOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons-vue'

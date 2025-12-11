@@ -47,6 +47,21 @@ export async function editPictureByBatchUsingPost(
   })
 }
 
+/** doPictureReview POST /api/picture/ereview */
+export async function doPictureReviewUsingPost(
+  body: API.PictureReviewRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean_>('/api/picture/ereview', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  })
+}
+
 /** getPictureById GET /api/picture/get */
 export async function getPictureByIdUsingGet(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -156,21 +171,6 @@ export async function getPictureOutPaintingTaskUsingGet(
       ...(options || {}),
     }
   )
-}
-
-/** doPictureReview POST /api/picture/review */
-export async function doPictureReviewUsingPost(
-  body: API.PictureReviewRequest,
-  options?: { [key: string]: any }
-) {
-  return request<API.BaseResponseBoolean_>('/api/picture/review', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    data: body,
-    ...(options || {}),
-  })
 }
 
 /** searchPictureByColor POST /api/picture/search/color */
@@ -293,6 +293,21 @@ export async function uploadPictureByUrlUsingPost(
       'Content-Type': 'application/json',
     },
     data: body,
+    ...(options || {}),
+  })
+}
+
+/** getSimilarPicture GET /api/picture/similar */
+export async function getSimilarPictureUsingGet(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getSimilarPictureUsingGETParams,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseListPictureVO_>('/api/picture/similar', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
     ...(options || {}),
   })
 }

@@ -26,7 +26,7 @@ public class FilePictureUpload extends PictureUploadTemplate {
 //        校验文件大小  几M
         long fileSize = multipartFile.getSize();
         final long ONE_M = 1024*1024;
-        ThrowUtils.throwIf(fileSize > 2 * ONE_M,ErrorCode.PARAMS_ERROR,"文件大小不能超过3M");
+        ThrowUtils.throwIf(fileSize > 4 * ONE_M,ErrorCode.PARAMS_ERROR,"文件大小不能超过4M");
 
         //校验文件后缀
         String fileSuffix = FileUtil.getSuffix(multipartFile.getOriginalFilename());

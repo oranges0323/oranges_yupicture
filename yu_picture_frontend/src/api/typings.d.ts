@@ -179,6 +179,8 @@ declare namespace API {
     message?: string
   }
 
+  type ComparatorString_ = true
+
   type CreateOutPaintingTaskResponse = {
     code?: string
     message?: string
@@ -215,6 +217,13 @@ declare namespace API {
     id?: number
   }
 
+  type getSimilarPictureUsingGETParams = {
+    /** pictureId */
+    pictureId?: number
+    /** limit */
+    limit?: number
+  }
+
   type getSpaceByIdUsingGETParams = {
     /** id */
     id?: number
@@ -238,6 +247,19 @@ declare namespace API {
   type ImageSearchResult = {
     fromUrl?: string
     thumbUrl?: string
+  }
+
+  type JSONConfig = {
+    checkDuplicate?: boolean
+    dateFormat?: string
+    ignoreCase?: boolean
+    ignoreError?: boolean
+    ignoreNullValue?: boolean
+    keyComparator?: ComparatorString_
+    order?: boolean
+    stripTrailingZeros?: boolean
+    transientSupport?: boolean
+    writeLongAsString?: boolean
   }
 
   type LoginUserVO = {

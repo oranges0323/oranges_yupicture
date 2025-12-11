@@ -6,7 +6,9 @@ import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yupi.yupicturebackend.api.aliyunai.AliYunAiApi;
@@ -203,6 +205,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         return PictureVO.objToVo(picture);
     }
 
+    /**
+     * 转换VO的
+     * @param picture 图片实体对象
+     * @param request HTTP请求对象
+     * @return
+     */
     @Override
     public PictureVO getPictureVO(Picture picture, HttpServletRequest request) {
         // 对象转封装类
@@ -279,6 +287,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         String sortField = pictureQueryRequest.getSortField();
         String sortOrder = pictureQueryRequest.getSortOrder();
 
+        Long viewCount = pictureQueryRequest.getViewCount();
 
         // 从多字段中搜索
         if (StrUtil.isNotBlank(searchText)) {
@@ -309,6 +318,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         //<= endEditTime
         queryWrapper.lt(ObjUtil.isNotEmpty(endEditTime), "editTime", endEditTime);
 
+        // viewCount不作为查询条件，而是作为排序条件，注释掉精确匹配
+        // queryWrapper.eq(ObjUtil.isNotEmpty(viewCount), "viewCount", viewCount);
         // JSON 数组查询
         if (CollUtil.isNotEmpty(tags)) {
             for (String tag : tags) {
@@ -316,7 +327,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             }
         }
         // 排序
-        queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals("ascend"), sortField);
+        if(StrUtil.isNotEmpty(sortField)){
+            queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals("ascend"), sortField);
+        }else {
+            //默认按浏览量排序
+            queryWrapper.orderByDesc("viewCount");
+        }
         return queryWrapper;
     }
 
@@ -637,12 +653,27 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             ThrowUtils.throwIf(!userService.isAdmin(loginUser), ErrorCode.NO_AUTH_ERROR, "没有管理员权限");
         }
 
+//        // 3. 查询指定图片（仅选择需要的字段）
+//        List<Picture> pictureList = this.lambdaQuery()
+//                .select(Picture::getId, Picture::getSpaceId)
+//                .eq(Picture::getSpaceId, spaceId)
+//                .in(Picture::getId, pictureIdList)
+//                .list();
         // 3. 查询指定图片（仅选择需要的字段）
-        List<Picture> pictureList = this.lambdaQuery()
+        LambdaQueryChainWrapper<Picture> queryWrapper = this.lambdaQuery()
                 .select(Picture::getId, Picture::getSpaceId)
-                .eq(Picture::getSpaceId, spaceId)
-                .in(Picture::getId, pictureIdList)
-                .list();
+                .in(Picture::getId, pictureIdList);
+
+        // 根据spaceId是否为null使用不同的查询条件
+        if (spaceId != null) {
+            queryWrapper.eq(Picture::getSpaceId, spaceId);
+        } else {
+            queryWrapper.isNull(Picture::getSpaceId);
+        }
+
+        List<Picture> pictureList = queryWrapper.list();
+
+
         if (pictureList.isEmpty()) {
             return;
         }
@@ -689,6 +720,98 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     }
 
     /**
+     * 获取相同标签或者色调的图片
+     * @param tagList
+     * @param picColor
+     * @return
+     */
+    @Override
+    public List<PictureVO> getSimilarPicture(List<String> tagList, String picColor, Long pictureId) {
+        // 处理空列表的情况
+        if (tagList == null) {
+            tagList = Collections.emptyList();
+        }
+
+        // 这里查询，因为有一个优先级的东西，两个条件都满足放最前面，标签满足再是色调满足
+        List<Picture> resultList = new ArrayList<>();
+
+        if (!tagList.isEmpty() || picColor != null) {
+            // 优先查询同时满足标签和色调的图片
+            if (!tagList.isEmpty() && picColor != null) {
+                // 构建标签查询条件
+                String tagsCondition = tagList.stream()
+                        .map(tag -> "'" + tag + "'")
+                        .collect(Collectors.joining(","));
+
+                List<Picture> pictureList = this.lambdaQuery()
+                        .ne(Picture::getId, pictureId) // 排除自己
+                        .isNull(Picture::getSpaceId)   // 只查询公共图库
+                        .apply("JSON_CONTAINS(tags, JSON_ARRAY(" + tagsCondition + "))")
+                        .eq(Picture::getPicColor, picColor)
+                        .last("LIMIT 3")
+                        .list();
+                resultList.addAll(pictureList);
+            }
+
+            // 如果结果不足3个且tagList不为空，查询满足标签的图片
+            if (resultList.size() < 3 && !tagList.isEmpty()) {
+                String tagsCondition = tagList.stream()
+                        .map(tag -> "'" + tag + "'")
+                        .collect(Collectors.joining(","));
+
+                List<Picture> pictureList = this.lambdaQuery()
+                        .ne(Picture::getId, pictureId) // 排除自己
+                        .isNull(Picture::getSpaceId)   // 只查询公共图库
+                        .apply("JSON_CONTAINS(tags, JSON_ARRAY(" + tagsCondition + "))")
+                        .last("LIMIT " + (3 - resultList.size()))
+                        .list();
+                resultList.addAll(pictureList);
+            }
+
+            // 如果结果不足3个且picColor不为空，查询满足色调的图片
+            if (resultList.size() < 3 && picColor != null) {
+                List<Picture> pictureList = this.lambdaQuery()
+                        .ne(Picture::getId, pictureId) // 排除自己
+                        .isNull(Picture::getSpaceId)   // 只查询公共图库
+                        .eq(Picture::getPicColor, picColor)
+                        .notIn(Picture::getId, resultList.stream().map(Picture::getId).collect(Collectors.toList()))
+                        .last("LIMIT " + (3 - resultList.size()))
+                        .list();
+                resultList.addAll(pictureList);
+            }
+
+//            // 如果结果仍不足3个，查询热门图片
+//            if (resultList.size() < 3) {
+//                List<Picture> pictureList = this.lambdaQuery()
+//                        .ne(Picture::getId, pictureId) // 排除自己
+//                        .eq(Picture::getTags, "热门")
+//                        .notIn(Picture::getId, resultList.stream().map(Picture::getId).collect(Collectors.toList()))
+//                        .last("LIMIT " + (3 - resultList.size()))
+//                        .list();
+//                resultList.addAll(pictureList);
+//            }
+        }
+
+        // 转换为VO对象
+        List<PictureVO> pictureVOList = resultList.stream()
+                .map(pic -> {
+                    PictureVO pictureVO = new PictureVO();
+                    BeanUtils.copyProperties(pic, pictureVO);
+                    return pictureVO;
+                })
+                .collect(Collectors.toList());
+        return pictureVOList;
+    }
+
+    @Override
+    public void increaseViewCount(Long pictureId) {
+        lambdaUpdate()
+                .eq(Picture::getId, pictureId)
+                .setSql("viewCount = viewCount + 1")
+                .update();
+    }
+
+    /**      
      * nameRule 格式：图片{序号}
      *
      * @param pictureList
